@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Wayland
@@ -344,6 +345,20 @@ PanelWindow {
 
       SessionSlot {}
     }
+
+    Rectangle {
+      readonly property int launcherCount: window.dock ? window.dock.pinnedLauncherCount : 0
+      visible: launcherCount > 0 && !!window.dock && window.dock.runningWindowCount > 0
+      color: Commons.Color.menu.border
+      opacity: 0.7
+      radius: Math.max(1, Style.space(1))
+      x: window.vertical ? slots.x + Math.round((slots.width - width) / 2)
+        : slots.x + window.slotSize * (1 + launcherCount) - Math.round(width / 2)
+      y: window.vertical ? slots.y + window.slotSize * (1 + launcherCount) - Math.round(height / 2)
+        : slots.y + Math.round((slots.height - height) / 2)
+      width: window.vertical ? Math.round(window.slotSize * 0.45) : Math.max(1, Style.space(1))
+      height: window.vertical ? Math.max(1, Style.space(1)) : Math.round(window.slotSize * 0.45)
+    }
   }
 
   component Slot: Item {
@@ -547,6 +562,7 @@ PanelWindow {
     // Running apps are drawn in full, pinned ones that are not running faded,
     // and one that is starting pulses between the two.
     Image {
+      id: appIcon
       x: window.iconInset
       y: window.iconInset
       width: window.iconSize
@@ -554,6 +570,8 @@ PanelWindow {
       sourceSize: Qt.size(window.iconSize * 2, window.iconSize * 2)
       source: window.dock && appSlot.modelData ? window.dock.iconFor(appSlot.modelData) : ""
       fillMode: Image.PreserveAspectFit
+      visible: !(window.dock && appSlot.modelData && window.dock.usesSymbolicIcon(appSlot.modelData))
+      layer.enabled: window.dock && appSlot.modelData && window.dock.usesSymbolicIcon(appSlot.modelData)
       asynchronous: true
       smooth: true
       mipmap: true
@@ -566,6 +584,14 @@ PanelWindow {
       transformOrigin: window.popOrigin
 
       Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
+    }
+
+    MultiEffect {
+      anchors.fill: appIcon
+      source: appIcon
+      visible: window.dock && appSlot.modelData && window.dock.usesSymbolicIcon(appSlot.modelData)
+      colorization: 1.0
+      colorizationColor: Commons.Color.bar.text
     }
 
     PanelToolTip {

@@ -95,17 +95,21 @@ Item {
     var toplevels = Hyprland.toplevels.values
     for (var i = 0; i < toplevels.length; i++) {
       var toplevel = toplevels[i].wayland
-      if (!toplevel || !toplevel.appId || toplevel.parent) continue
-      var entry = root.entryForAppId(toplevel.appId)
+      if (!toplevel || toplevel.parent) continue
       var workspace = toplevels[i].workspace
-      var desktopId = entry ? entry.id : toplevel.appId
       var address = String(toplevels[i].address || i)
       var ipc = toplevels[i].lastIpcObject
+      // Some Wayland clients (including Surunizer) expose neither appId nor
+      // class. Keep those real windows in the dock using their title.
+      var appId = String(toplevel.appId || (ipc && ipc.class) || toplevel.title || "window")
+      var entry = root.entryForAppId(appId)
+      var desktopId = entry ? entry.id : appId
       var at = ipc && ipc.at ? ipc.at : [0, 0]
       windows.push({
         key: desktopId + "@" + address,
         desktopId: desktopId,
         hasEntry: !!entry && !entry.noDisplay,
+        floating: !!ipc && ipc.floating === true,
         workspaceId: workspace ? workspace.id : -1,
         minimized: !!workspace && DockModel.isMinimizedWorkspace(workspace.name),
         position: { x: Number(at[0]) || 0, y: Number(at[1]) || 0 },
@@ -118,6 +122,13 @@ Item {
     var activeWorkspaceId = activeWorkspace ? activeWorkspace.id : -1
     return DockModel.orderItems(DockModel.buildItems(pinned, windows), root.order, root.position, activeWorkspaceId)
   }
+
+  readonly property int pinnedLauncherCount: root.items.filter(function(item) {
+    return item.pinned && item.windows.length === 0
+  }).length
+  readonly property int runningWindowCount: root.items.filter(function(item) {
+    return item.windows.length > 0
+  }).length
 
   readonly property var itemsByKey: {
     var byKey = {}
@@ -191,9 +202,27 @@ Item {
     return item ? DesktopEntries.byId(item.desktopId || item.key) : null
   }
 
+  function symbolicIconFor(icon) {
+    var name = String(icon || "")
+    if (!name || name.indexOf("/") >= 0 || name.indexOf("://") >= 0) return ""
+    if (name.slice(-9) === "-symbolic") name = name.slice(0, -9)
+    var symbolicName = name + "-symbolic"
+    var source = root.appLibrary ? root.appLibrary.iconSource(symbolicName) : Quickshell.iconPath(symbolicName, true)
+    return source && String(source).toLowerCase().indexOf(symbolicName.toLowerCase()) >= 0 ? String(source) : ""
+  }
+
+  function usesSymbolicIcon(item) {
+    if (!item || !item.pinned || item.windows.length > 0) return false
+    var entry = entryFor(item)
+    var icon = entry && entry.icon ? entry.icon : (item.desktopId || item.key)
+    return root.symbolicIconFor(icon) !== ""
+  }
+
   function iconFor(item) {
     var entry = entryFor(item)
     var icon = entry && entry.icon ? entry.icon : (item ? (item.desktopId || item.key) : "")
+    var symbolic = root.usesSymbolicIcon(item) ? root.symbolicIconFor(icon) : ""
+    if (symbolic) return symbolic
     return root.appLibrary ? root.appLibrary.iconSource(icon) : Quickshell.iconPath(icon, true)
   }
 
