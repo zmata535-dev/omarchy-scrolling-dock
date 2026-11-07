@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "zm.dock",
+  "name": "My Dock",
+  "version": "1.0.0",
+  "author": "Omarchy",
+  "description": "App dock shown on floating workspaces",
+  "kinds": [
+    "service",
+    "menu"
+  ],
+  "entryPoints": {
+    "service": "Dock.qml"
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.dock"
+  }
+}
