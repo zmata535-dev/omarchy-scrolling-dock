@@ -64,7 +64,7 @@ PanelWindow {
   readonly property int iconSize: Math.round(36 * Style.fontScale)
   // Each app has a square slot with its icon in the middle, and the slots run
   // straight to the edge of the dock.
-  readonly property int iconInset: Style.spacing.md
+  readonly property int iconInset: Style.spacing.xs
   readonly property int slotSize: iconSize + iconInset * 2
   // A pinned app that is not running is drawn faded.
   readonly property real idleOpacity: 0.7
@@ -449,6 +449,9 @@ PanelWindow {
     required property string key
     readonly property var modelData: window.dock ? window.dock.itemFor(key) : null
     readonly property bool launching: !!window.dock && window.dock.isLaunching(key)
+    readonly property bool pinnedLauncher: !!modelData && modelData.pinned && windowCount === 0
+    readonly property int renderedIconSize: pinnedLauncher ? Math.round(window.iconSize * buttonScale) : window.iconSize
+    buttonScale: 0.5
     readonly property bool focused: !!modelData && modelData.windows.some(function(appWindow) {
       return !!appWindow.toplevel && appWindow.toplevel.activated === true
     })
@@ -563,19 +566,19 @@ PanelWindow {
     // and one that is starting pulses between the two.
     Image {
       id: appIcon
-      x: window.iconInset
-      y: window.iconInset
-      width: window.iconSize
-      height: window.iconSize
-      sourceSize: Qt.size(window.iconSize * 2, window.iconSize * 2)
+      width: appSlot.renderedIconSize
+      height: appSlot.renderedIconSize
+      x: (window.slotSize - width) / 2
+      y: (window.slotSize - height) / 2
+      sourceSize: Qt.size(appSlot.renderedIconSize * 2, appSlot.renderedIconSize * 2)
       source: window.dock && appSlot.modelData ? window.dock.iconFor(appSlot.modelData) : ""
       fillMode: Image.PreserveAspectFit
-      visible: !(window.dock && appSlot.modelData && window.dock.usesSymbolicIcon(appSlot.modelData))
-      layer.enabled: window.dock && appSlot.modelData && window.dock.usesSymbolicIcon(appSlot.modelData)
+      visible: !appSlot.pinnedLauncher
+      layer.enabled: appSlot.pinnedLauncher
       asynchronous: true
       smooth: true
       mipmap: true
-      opacity: appSlot.launching ? appSlot.pulse : (appSlot.windowCount > 0 || (appSlot.modelData && appSlot.modelData.appRunning) ? 1 : window.idleOpacity)
+      opacity: appSlot.launching ? appSlot.pulse : 1
       transform: Translate {
         x: window.vertical ? 0 : appSlot.displayedShift
         y: window.vertical ? appSlot.displayedShift : 0
@@ -589,9 +592,15 @@ PanelWindow {
     MultiEffect {
       anchors.fill: appIcon
       source: appIcon
-      visible: window.dock && appSlot.modelData && window.dock.usesSymbolicIcon(appSlot.modelData)
+      visible: appSlot.pinnedLauncher
       colorization: 1.0
-      colorizationColor: Commons.Color.bar.text
+      colorizationColor: appSlot.hovered ? Commons.Color.accent : Commons.Color.bar.text
+      transform: Translate {
+        x: window.vertical ? 0 : appSlot.displayedShift
+        y: window.vertical ? appSlot.displayedShift : 0
+      }
+      scale: appIcon.scale
+      transformOrigin: window.popOrigin
     }
 
     PanelToolTip {
